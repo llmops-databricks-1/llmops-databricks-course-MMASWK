@@ -95,3 +95,11 @@ dmypy.json
 # VS code configuration
 .vscode
 .history
+
+# Databricks
+.databricks/
+
+#data files
+data/
+
+databricks.yml
