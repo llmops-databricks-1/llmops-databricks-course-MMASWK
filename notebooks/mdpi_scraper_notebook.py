@@ -1,3 +1,4 @@
+# Databricks notebook source
 # COMMAND ----------
 
 import sys
@@ -16,7 +17,7 @@ if src_path not in sys.path:
 # Initialize scraper with search query for MDPI
 scraper = MDPIScraper(
     search_query="coffee+brew",
-    output_directory="data",
+    output_directory="/Volumes/mlops_dev/maximili/mmaswk_volume/mdpi_paper/",
     request_delay=1.0,
     max_retries=5,
     retry_delay=2,

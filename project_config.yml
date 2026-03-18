@@ -2,36 +2,36 @@
 
 # Development environment
 dev:
-  catalog: llmops_dev
-  schema: mdpi
-  volume: mdpi_files
+  catalog: mlops_dev
+  schema: maximili
+  volume: mmaswk_volume
   llm_endpoint: databricks-llama-4-maverick
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 0
+  warehouse_id: 9c9d5a71fb3773e4
   vector_search_endpoint: endpoint
-  genie_space_id: 0
+  genie_space_id: placeholder
 
 # Acceptance/Staging environment
 acc:
-  catalog: llmops_dev
-  schema: mdpi
-  volume: mdpi_files
+  catalog: mlops_dev
+  schema: maximili
+  volume: mmaswk_volume
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 0
+  warehouse_id: 9c9d5a71fb3773e4
   vector_search_endpoint: endpoint
-  genie_space_id: 0
+  genie_space_id: placeholder
 
 # Production environment
 prd:
-  catalog: llmops_dev
-  schema: mdpi
-  volume: mdpi_files
+  catalog: mlops_dev
+  schema: maximili
+  volume: mmaswk_volume
   llm_endpoint: databricks-meta-llama-3-1-70b-instruct
   embedding_endpoint: databricks-gte-large-en
-  warehouse_id: 0
+  warehouse_id: 9c9d5a71fb3773e4
   vector_search_endpoint: endpoint
-  genie_space_id: 0
+  genie_space_id: placeholder
 
 # Model configuration
 model_config:
