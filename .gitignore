@@ -64,7 +64,7 @@ target/
 
 # Environments
 .env
-.venv
+.venv/
 env/
 venv/
 ENV/
@@ -95,3 +95,20 @@ dmypy.json
 # VS code configuration
 .vscode
 .history
+
+# Databricks
+.databricks/
+
+# Bundle and build artifacts
+dist/
+build/
+
+# IDE and cache
+.git/
+.ruff_cache/
+.claude/
+
+#data files
+data/
+
+databricks.yml

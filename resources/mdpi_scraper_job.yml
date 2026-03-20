@@ -1,0 +1,23 @@
+resources:
+  jobs:
+    mdpi_scraper_job:
+      name: mdpi-scraper
+      tags:
+        project_name: "llmops-databricks-course-MMASWK"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"
+            dependencies:
+              - ../dist/*.whl
+
+      tasks:
+        - task_key: mdpi_scraper
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/mdpi_scraper_notebook.py
+            base_parameters:
+              env: ${bundle.target}
+              git_sha: "${var.git_sha}"
+              run_id: "{{job.run_id}}"
