@@ -1,7 +1,5 @@
 """Vector search management for mdpi papers."""
 
-from typing import Any
-
 from databricks.vector_search.client import VectorSearchClient
 from loguru import logger
 
@@ -61,7 +59,7 @@ class VectorSearchManager:
         else:
             logger.info(f"✓ Vector search endpoint exists: {self.endpoint_name}")
 
-    def create_or_get_index(self) -> Any:
+    def create_or_get_index(self) -> object:
         """Create or get vector search index.
 
         Returns:
