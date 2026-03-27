@@ -7,12 +7,11 @@ import sys
 from pathlib import Path
 
 from loguru import logger
-
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.types import StringType, StructField, StructType
 
-from filteredNotFrenzied.mdpi_scraper import MDPIScraper
 from filteredNotFrenzied.config import get_env, load_config
+from filteredNotFrenzied.mdpi_scraper import MDPIScraper
 
 src_path = Path.cwd().parent / "src"
 if src_path not in sys.path:
@@ -50,16 +49,18 @@ pdf_storage_path = "/Volumes/mlops_dev/maximili/mmaswk_volume/mdpi_paper/"
 # COMMAND ----------
 
 # Define schema
-schema = StructType([
-    StructField("id", StringType(), False),
-    StructField("title", StringType(), False),
-    StructField("authors", StringType(), False),
-    StructField("summary", StringType(), True),
-    StructField("published", StringType(), True),
-    StructField("pdf_url", StringType(), False),
-    StructField("journal", StringType(), True),
-    StructField("ingestion_timestamp", StringType(), False),
-])
+schema = StructType(
+    [
+        StructField("id", StringType(), False),
+        StructField("title", StringType(), False),
+        StructField("authors", StringType(), False),
+        StructField("summary", StringType(), True),
+        StructField("published", StringType(), True),
+        StructField("pdf_url", StringType(), False),
+        StructField("journal", StringType(), True),
+        StructField("ingestion_timestamp", StringType(), False),
+    ]
+)
 
 # COMMAND ----------
 
@@ -80,11 +81,9 @@ logger.info(f"\nTotal papers fetched: {len(all_papers)}")
 # Create and write DataFrame
 df = spark.createDataFrame(all_papers, schema=schema)
 
-df.write \
-    .format("delta") \
-    .mode("overwrite") \
-    .option("mergeSchema", "true") \
-    .saveAsTable(output_table)
+df.write.format("delta").mode("overwrite").option("mergeSchema", "true").saveAsTable(
+    output_table
+)
 
 logger.info(f"Saved {len(all_papers)} papers to table: {output_table}")
 
@@ -92,8 +91,3 @@ logger.info(f"Saved {len(all_papers)} papers to table: {output_table}")
 
 total, downloaded = scraper.download_papers(all_papers, pdf_storage_path)
 logger.info(f"Downloaded {downloaded}/{total} PDFs")
-
-# COMMAND ----------
-
-# Verify data
-display(spark.table(output_table))

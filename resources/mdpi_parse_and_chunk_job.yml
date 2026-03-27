@@ -21,5 +21,3 @@ resources:
               env: ${bundle.target}
               git_sha: "${var.git_sha}"
               run_id: "{{job.run_id}}"
-
-

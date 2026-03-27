@@ -14,24 +14,16 @@ import os
 import re
 import time
 
-import arxiv
 from loguru import logger
 from pyspark.sql import SparkSession
-from pyspark.sql import types as T
 from pyspark.sql.functions import (
     col,
     concat_ws,
-    current_timestamp,
-    dayofmonth,
     explode,
-    month,
-    to_date,
     udf,
-    year,
-    try_to_date,
-    size, split
 )
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
+
 from filteredNotFrenzied.config import ProjectConfig
 
 
@@ -58,12 +50,13 @@ class DataProcessor:
         self.volume = config.volume
 
         self.end = time.strftime("%Y%m%d%H%M", time.gmtime())
-        self.pdf_dir = f"/Volumes/{self.catalog}/{self.schema}/{self.volume}"#/{self.end}"
+        self.pdf_dir = (
+            f"/Volumes/{self.catalog}/{self.schema}/{self.volume}"  # /{self.end}"
+        )
         os.makedirs(self.pdf_dir, exist_ok=True)
         self.papers_table = f"{self.catalog}.{self.schema}.mdpi_papers"
         self.parsed_table = f"{self.catalog}.{self.schema}.ai_parsed_docs_table"
 
-    
     def parse_pdfs_with_ai(self) -> None:
         """
         Parse PDFs using ai_parse_document and store in ai_parsed_docs table.
@@ -90,9 +83,7 @@ class DataProcessor:
             )
         """)
 
-        logger.info(
-            f"Parsed PDFs from {self.pdf_dir} and saved to {self.parsed_table}"
-        )
+        logger.info(f"Parsed PDFs from {self.pdf_dir} and saved to {self.parsed_table}")
 
     @staticmethod
     def _extract_chunks(parsed_content_json: str) -> list[tuple[str, str]]:
@@ -158,13 +149,14 @@ class DataProcessor:
         Reads from ai_parsed_docs table and saves to mdpi_chunks table.
         """
 
-        
         logger.info(
             f"Processing parsed documents from "
             f"{self.parsed_table} for end date {self.end}"
         )
 
-        min_processed = self.spark.table(self.parsed_table).agg({"processed": "min"}).collect()[0][0]
+        min_processed = (
+            self.spark.table(self.parsed_table).agg({"processed": "min"}).collect()[0][0]
+        )
         df = self.spark.table(self.parsed_table).where(col("processed") == min_processed)
 
         # Define schema for the extracted chunks
@@ -182,39 +174,36 @@ class DataProcessor:
         clean_chunk_udf = udf(self._clean_chunk, StringType())
 
         metadata_df = self.spark.table(self.papers_table).select(
-            col("id").alias('mdpi_id'),
+            col("id").alias("mdpi_id"),
             col("title"),
             col("summary"),
             concat_ws(", ", col("authors")).alias("authors"),
         )
-        
+
         # Step 1: Add paper_title and extract chunks
-        chunks_intermediate_df = (
-            df.withColumn("paper_title", extract_paper_id_udf(col("path")))
-                .withColumn("chunks", extract_chunks_udf(col("parsed_content")))
-        )
+        chunks_intermediate_df = df.withColumn(
+            "paper_title", extract_paper_id_udf(col("path"))
+        ).withColumn("chunks", extract_chunks_udf(col("parsed_content")))
         logger.info("Extracted chunks from parsed content")
-        
+
         # Step 2: Explode chunks and select relevant columns
-        exploded_chunks_df = (
-            chunks_intermediate_df
-            .withColumn("chunk", explode(col("chunks")))
-            .select(
-                col("paper_title"),
-                col("chunk.chunk_id").alias("chunk_id"),
-                clean_chunk_udf(col("chunk.content")).alias("text")
-            )
+        exploded_chunks_df = chunks_intermediate_df.withColumn(
+            "chunk", explode(col("chunks"))
+        ).select(
+            col("paper_title"),
+            col("chunk.chunk_id").alias("chunk_id"),
+            clean_chunk_udf(col("chunk.content")).alias("text"),
         )
 
         # Step 3: Join with metadata and create composite ID
         filtered_chunks_df = exploded_chunks_df
         chunks_df = (
-            filtered_chunks_df
-            .join(metadata_df, col("paper_title") == col("title"), "left")
+            filtered_chunks_df.join(
+                metadata_df, col("paper_title") == col("title"), "left"
+            )
             .withColumn("id", concat_ws("_", col("mdpi_id"), col("chunk_id")))
             .drop("paper_title")
         )
-
 
         # Write to table
         mdpi_chunks_table = f"{self.catalog}.{self.schema}.mdpi_chunks_table"

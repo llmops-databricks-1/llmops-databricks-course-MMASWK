@@ -611,46 +611,46 @@ class MDPIScraper:
         """
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            
+
             # Find all PDF links with class UD_Listings_ArticlePDF
             pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
-            
+
             if paper_index >= len(pdf_links):
                 return "Unknown"
-            
+
             # Get the specific PDF link
             pdf_link = pdf_links[paper_index]
-            
+
             # Find the generic-item container
             generic_item = pdf_link.find_parent(class_="generic-item")
-            
+
             if not generic_item:
                 return "Unknown"
-            
-            # Find the div with class color-grey-dark - contains journal + publication info
+
+            # Find the div with class color-grey-dark, contains journal + publication info
             color_grey_div = generic_item.find("div", class_="color-grey-dark")
-            
+
             if not color_grey_div:
                 return "Unknown"
-            
+
             # Get the full text from this div
             full_text = color_grey_div.get_text(strip=True)
-            
+
             # Extract journal name (everything before the year, which is a 4-digit number)
             match = re.match(r"^([^0-9]+?)\d{4}\s*,", full_text)
-            
+
             if match:
                 journal_name = match.group(1).strip()
                 if journal_name:
                     return journal_name
-            
+
             # Fallback: just get text before first digit
             for i, char in enumerate(full_text):
                 if char.isdigit():
                     journal_name = full_text[:i].strip()
                     if journal_name:
                         return journal_name
-            
+
             return "Unknown"
         except Exception as e:
             self.logger.debug(f"Error extracting journal: {str(e)}")
@@ -671,45 +671,45 @@ class MDPIScraper:
         """
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            
+
             # Find all PDF links with class UD_Listings_ArticlePDF
             pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
-            
+
             if paper_index >= len(pdf_links):
                 return "Unknown"
-            
+
             # Get the specific PDF link
             pdf_link = pdf_links[paper_index]
-            
+
             # Find the generic-item container
             generic_item = pdf_link.find_parent(class_="generic-item")
-            
+
             if not generic_item:
                 return "Unknown"
-            
-            # Find the div with class color-grey-dark - contains journal + publication info
+
+            # Find the div with class color-grey-dark, contains journal + publication info
             color_grey_div = generic_item.find("div", class_="color-grey-dark")
-            
+
             if not color_grey_div:
                 return "Unknown"
-            
+
             # Get the full text from this div
             full_text = color_grey_div.get_text(strip=True)
-            
+
             # Extract date (everything after the dash)
             # Pattern: "...DOI- DD Mon YYYY" or "...- DD Mon YYYY"
             match = re.search(r"-\s+(\d{1,2}\s+\w+\s+\d{4})", full_text)
-            
+
             if match:
                 date = match.group(1).strip()
                 if date:
                     return date
-            
+
             # Fallback: look for date pattern anywhere (DD Mon YYYY)
             date_match = re.search(r"(\d{1,2}\s+\w+\s+\d{4})", full_text)
             if date_match:
                 return date_match.group(1)
-            
+
             return "Unknown"
         except Exception as e:
             self.logger.debug(f"Error extracting publication date: {str(e)}")
@@ -731,22 +731,22 @@ class MDPIScraper:
         """
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            
+
             # Find all PDF links with class UD_Listings_ArticlePDF
             pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
-            
+
             if paper_index >= len(pdf_links):
                 return ""
-            
+
             # Get the specific PDF link
             pdf_link = pdf_links[paper_index]
-            
+
             # Find the generic-item container
             generic_item = pdf_link.find_parent(class_="generic-item")
-            
+
             if not generic_item:
                 return ""
-            
+
             # Find the appropriate abstract div
             if full:
                 # Get the FULL abstract (hidden by default, but already in HTML!)
@@ -754,29 +754,29 @@ class MDPIScraper:
             else:
                 # Get the short abstract (shown by default)
                 abstract_div = generic_item.find("div", class_="abstract-cropped")
-            
+
             if not abstract_div:
                 return ""
-            
+
             # Extract text, removing the "Abstract" label if present
             abstract_text = abstract_div.get_text(strip=True)
-            
+
             # Clean up the text
             if abstract_text.startswith("Abstract"):
                 abstract_text = abstract_text[8:].strip()
-            
+
             # Remove "Full article" or "Full Article" from the end
-            if abstract_text.endswith("Full article"):
+            if abstract_text.endswith("Full article") or abstract_text.endswith(
+                "Full Article"
+            ):
                 abstract_text = abstract_text[:-12].strip()
-            elif abstract_text.endswith("Full Article"):
-                abstract_text = abstract_text[:-12].strip()
-            
+
             return abstract_text if abstract_text else ""
         except Exception as e:
             self.logger.debug(f"Error extracting abstract: {str(e)}")
 
         return ""
-    
+
     def extract_version_id_from_url(self, pdf_url: str) -> str:
         """Extract the version ID from the PDF URL.
 
@@ -793,19 +793,21 @@ class MDPIScraper:
                 return match.group(1)
         except Exception as e:
             self.logger.debug(f"Error extracting version ID: {str(e)}")
-        
+
         return "Unknown"
 
     def extract_all_paper_data(self, html_content: str) -> list[dict]:
         """Extract all paper data from search results page.
 
-        Returns a list of dictionaries with paper information compatible with Spark DataFrame.
+        Returns a list of dictionaries with paper information compatible with
+          Spark DataFrame.
 
         Args:
             html_content: HTML content of search results page
 
         Returns:
-            List of dictionaries with keys: id, title, authors, summary, published, pdf_url, journal, ingestion_timestamp
+            List of dictionaries with keys: id, title, authors, summary, published,
+              pdf_url, journal, ingestion_timestamp
         """
         papers = []
 
@@ -819,7 +821,7 @@ class MDPIScraper:
                 try:
                     # Extract title from data-name attribute
                     title = pdf_link.get("data-name", "Unknown").strip()
-                    
+
                     # Extract PDF URL
                     pdf_href = pdf_link.get("href", "")
                     pdf_url = urljoin(self.base_url, pdf_href) if pdf_href else "Unknown"
@@ -829,9 +831,7 @@ class MDPIScraper:
 
                     # Extract metadata using improved methods
                     authors = self.extract_authors_from_search_results(html_content, idx)
-                    journal = self.extract_journal_from_search_results(
-                        html_content, idx
-                    )
+                    journal = self.extract_journal_from_search_results(html_content, idx)
                     published = self.extract_publication_date_from_search_results(
                         html_content, idx
                     )
@@ -875,31 +875,31 @@ class MDPIScraper:
         """
         try:
             soup = BeautifulSoup(html_content, "html.parser")
-            
+
             # Find all PDF links with class UD_Listings_ArticlePDF
             pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
-            
+
             if paper_index >= len(pdf_links):
                 return "Unknown"
-            
+
             # Get the specific PDF link
             pdf_link = pdf_links[paper_index]
-            
+
             # Find the generic-item container
             generic_item = pdf_link.find_parent(class_="generic-item")
-            
+
             if not generic_item:
                 return "Unknown"
-            
+
             # Find the authors div
             authors_div = generic_item.find("div", class_="authors")
-            
+
             if not authors_div:
                 return "Unknown"
-            
+
             # Extract author names from <strong> tags
             author_tags = authors_div.find_all("strong")
-            
+
             if author_tags:
                 authors = [
                     tag.get_text(strip=True)
@@ -908,7 +908,7 @@ class MDPIScraper:
                 ]
                 if authors:
                     return ", ".join(authors)
-            
+
             return "Unknown"
         except Exception as e:
             self.logger.debug(f"Error extracting authors: {str(e)}")
@@ -989,7 +989,7 @@ class MDPIScraper:
                 }
 
                 self.logger.info(
-                    f"[{idx}/{total}] Downloading: {paper.get('title', 'Unknown')[:60]}..."
+                    f"[{idx}/{total}] Downloading: {paper.get('title', 'Unknown')[:60]}"
                 )
 
                 if self.download_pdf(pdf_info, output_dir):
