@@ -1,0 +1,25 @@
+resources:
+  jobs:
+    mdpi_parseand_chunk_job:
+      name: mdpi-parse-and-chunk
+      tags:
+        project_name: "llmops-databricks-course-MMASWK"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"
+            dependencies:
+              - ../dist/*.whl
+
+      tasks:
+        - task_key: mdpi_parse_and_chunk
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/parse_and_chunk_notebook.py
+            base_parameters:
+              env: ${bundle.target}
+              git_sha: "${var.git_sha}"
+              run_id: "{{job.run_id}}"
+
+
