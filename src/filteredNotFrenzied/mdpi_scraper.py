@@ -772,6 +772,7 @@ class MDPIScraper:
             self.logger.debug(f"Error extracting abstract: {str(e)}")
 
         return ""
+
     def extract_version_id_from_url(self, pdf_url: str) -> str:
         """Extract the version ID from the PDF URL.
 
