@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import time
+from datetime import datetime
 from urllib.parse import urljoin
 
 import requests
@@ -595,3 +596,419 @@ class MDPIScraper:
         self.logger.info("=" * 50)
 
         return total_pdfs_found, total_pdfs_downloaded
+
+    def extract_journal_from_search_results(
+        self, html_content: str, paper_index: int
+    ) -> str:
+        """Extract journal name from search results page.
+
+        Args:
+            html_content: HTML content of search results page
+            paper_index: Index of paper to extract (0-based)
+
+        Returns:
+            Journal name or "Unknown"
+        """
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+
+            # Find all PDF links with class UD_Listings_ArticlePDF
+            pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
+
+            if paper_index >= len(pdf_links):
+                return "Unknown"
+
+            # Get the specific PDF link
+            pdf_link = pdf_links[paper_index]
+
+            # Find the generic-item container
+            generic_item = pdf_link.find_parent(class_="generic-item")
+
+            if not generic_item:
+                return "Unknown"
+
+            # Find the div with class color-grey-dark, contains journal + publication info
+            color_grey_div = generic_item.find("div", class_="color-grey-dark")
+
+            if not color_grey_div:
+                return "Unknown"
+
+            # Get the full text from this div
+            full_text = color_grey_div.get_text(strip=True)
+
+            # Extract journal name (everything before the year, which is a 4-digit number)
+            match = re.match(r"^([^0-9]+?)\d{4}\s*,", full_text)
+
+            if match:
+                journal_name = match.group(1).strip()
+                if journal_name:
+                    return journal_name
+
+            # Fallback: just get text before first digit
+            for i, char in enumerate(full_text):
+                if char.isdigit():
+                    journal_name = full_text[:i].strip()
+                    if journal_name:
+                        return journal_name
+
+            return "Unknown"
+        except Exception as e:
+            self.logger.debug(f"Error extracting journal: {str(e)}")
+
+        return "Unknown"
+
+    def extract_publication_date_from_search_results(
+        self, html_content: str, paper_index: int
+    ) -> str:
+        """Extract publication date from search results page.
+
+        Args:
+            html_content: HTML content of search results page
+            paper_index: Index of paper to extract (0-based)
+
+        Returns:
+            Publication date in format "DD Mon YYYY" or "Unknown"
+        """
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+
+            # Find all PDF links with class UD_Listings_ArticlePDF
+            pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
+
+            if paper_index >= len(pdf_links):
+                return "Unknown"
+
+            # Get the specific PDF link
+            pdf_link = pdf_links[paper_index]
+
+            # Find the generic-item container
+            generic_item = pdf_link.find_parent(class_="generic-item")
+
+            if not generic_item:
+                return "Unknown"
+
+            # Find the div with class color-grey-dark, contains journal + publication info
+            color_grey_div = generic_item.find("div", class_="color-grey-dark")
+
+            if not color_grey_div:
+                return "Unknown"
+
+            # Get the full text from this div
+            full_text = color_grey_div.get_text(strip=True)
+
+            # Extract date (everything after the dash)
+            # Pattern: "...DOI- DD Mon YYYY" or "...- DD Mon YYYY"
+            match = re.search(r"-\s+(\d{1,2}\s+\w+\s+\d{4})", full_text)
+
+            if match:
+                date = match.group(1).strip()
+                if date:
+                    return date
+
+            # Fallback: look for date pattern anywhere (DD Mon YYYY)
+            date_match = re.search(r"(\d{1,2}\s+\w+\s+\d{4})", full_text)
+            if date_match:
+                return date_match.group(1)
+
+            return "Unknown"
+        except Exception as e:
+            self.logger.debug(f"Error extracting publication date: {str(e)}")
+
+        return "Unknown"
+
+    def extract_abstract_from_search_results(
+        self, html_content: str, paper_index: int, full: bool = True
+    ) -> str:
+        """Extract abstract/summary from search results page.
+
+        Args:
+            html_content: HTML content of search results page
+            paper_index: Index of paper to extract (0-based)
+            full: If True, return full abstract; if False, return cropped version
+
+        Returns:
+            Abstract text or empty string
+        """
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+
+            # Find all PDF links with class UD_Listings_ArticlePDF
+            pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
+
+            if paper_index >= len(pdf_links):
+                return ""
+
+            # Get the specific PDF link
+            pdf_link = pdf_links[paper_index]
+
+            # Find the generic-item container
+            generic_item = pdf_link.find_parent(class_="generic-item")
+
+            if not generic_item:
+                return ""
+
+            # Find the appropriate abstract div
+            if full:
+                # Get the FULL abstract (hidden by default, but already in HTML!)
+                abstract_div = generic_item.find("div", class_="abstract-full")
+            else:
+                # Get the short abstract (shown by default)
+                abstract_div = generic_item.find("div", class_="abstract-cropped")
+
+            if not abstract_div:
+                return ""
+
+            # Extract text, removing the "Abstract" label if present
+            abstract_text = abstract_div.get_text(strip=True)
+
+            # Clean up the text
+            if abstract_text.startswith("Abstract"):
+                abstract_text = abstract_text[8:].strip()
+
+            # Remove "Full article" or "Full Article" from the end
+            if abstract_text.endswith("Full article") or abstract_text.endswith(
+                "Full Article"
+            ):
+                abstract_text = abstract_text[:-12].strip()
+
+            return abstract_text if abstract_text else ""
+        except Exception as e:
+            self.logger.debug(f"Error extracting abstract: {str(e)}")
+
+        return ""
+
+    def extract_version_id_from_url(self, pdf_url: str) -> str:
+        """Extract the version ID from the PDF URL.
+
+        Args:
+            pdf_url: PDF URL (e.g., https://www.mdpi.com/2076-3417/16/4/1904/pdf?version=1771050786)
+
+        Returns:
+            Version ID string or "Unknown" if not found
+        """
+        try:
+            # Extract version parameter from URL
+            match = re.search(r"[?&]version=([0-9]+)", pdf_url)
+            if match:
+                return match.group(1)
+        except Exception as e:
+            self.logger.debug(f"Error extracting version ID: {str(e)}")
+
+        return "Unknown"
+
+    def extract_all_paper_data(self, html_content: str) -> list[dict]:
+        """Extract all paper data from search results page.
+
+        Returns a list of dictionaries with paper information compatible with
+          Spark DataFrame.
+
+        Args:
+            html_content: HTML content of search results page
+
+        Returns:
+            List of dictionaries with keys: id, title, authors, summary, published,
+              pdf_url, journal, ingestion_timestamp
+        """
+        papers = []
+
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+
+            # Find all PDF links using the class selector for reliability
+            pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
+
+            for idx, pdf_link in enumerate(pdf_links):
+                try:
+                    # Extract title from data-name attribute
+                    title = pdf_link.get("data-name", "Unknown").strip()
+
+                    # Extract PDF URL
+                    pdf_href = pdf_link.get("href", "")
+                    pdf_url = urljoin(self.base_url, pdf_href) if pdf_href else "Unknown"
+
+                    # Extract version ID from URL
+                    version_id = self.extract_version_id_from_url(pdf_url)
+
+                    # Extract metadata using improved methods
+                    authors = self.extract_authors_from_search_results(html_content, idx)
+                    journal = self.extract_journal_from_search_results(html_content, idx)
+                    published = self.extract_publication_date_from_search_results(
+                        html_content, idx
+                    )
+                    summary = self.extract_abstract_from_search_results(html_content, idx)
+
+                    papers.append(
+                        {
+                            "id": version_id,
+                            "title": title,
+                            "authors": authors,
+                            "summary": summary,
+                            "published": published,
+                            "pdf_url": pdf_url,
+                            "journal": journal,
+                            "ingestion_timestamp": datetime.now().isoformat(),
+                        }
+                    )
+
+                except Exception as e:
+                    self.logger.debug(f"Error extracting paper {idx}: {str(e)}")
+                    continue
+
+            self.logger.info(f"Extracted {len(papers)} papers with full metadata")
+
+        except Exception as e:
+            self.logger.error(f"Error in extract_all_paper_data: {str(e)}")
+
+        return papers
+
+    def extract_authors_from_search_results(
+        self, html_content: str, paper_index: int
+    ) -> str:
+        """Extract paper authors directly from search results page.
+
+        Args:
+            html_content: HTML content of search results page
+            paper_index: Index of paper (0-based) in the PDF links list
+
+        Returns:
+            Comma-separated string of author names, or "Unknown" if not found
+        """
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+
+            # Find all PDF links with class UD_Listings_ArticlePDF
+            pdf_links = soup.find_all("a", class_="UD_Listings_ArticlePDF")
+
+            if paper_index >= len(pdf_links):
+                return "Unknown"
+
+            # Get the specific PDF link
+            pdf_link = pdf_links[paper_index]
+
+            # Find the generic-item container
+            generic_item = pdf_link.find_parent(class_="generic-item")
+
+            if not generic_item:
+                return "Unknown"
+
+            # Find the authors div
+            authors_div = generic_item.find("div", class_="authors")
+
+            if not authors_div:
+                return "Unknown"
+
+            # Extract author names from <strong> tags
+            author_tags = authors_div.find_all("strong")
+
+            if author_tags:
+                authors = [
+                    tag.get_text(strip=True)
+                    for tag in author_tags
+                    if tag.get_text(strip=True)
+                ]
+                if authors:
+                    return ", ".join(authors)
+
+            return "Unknown"
+        except Exception as e:
+            self.logger.debug(f"Error extracting authors: {str(e)}")
+            return "Unknown"
+
+    def fetch_papers(self, max_results: int = 50) -> list[dict]:
+        """Fetch MDPI papers matching the search query and return as list of dictionaries.
+
+        The search query is set during initialization. This is the main method for
+        getting papers compatible with Spark DataFrame.
+
+        Args:
+            max_results: Maximum number of results to fetch (default 50)
+
+        Returns:
+            List of paper dictionaries with schema:
+            {
+                'id': int,
+                'title': str,
+                'authors': str,
+                'summary': str,
+                'published': str,
+                'pdf_url': str,
+                'journal': str,
+                'ingestion_timestamp': str
+            }
+        """
+        # Build search URL
+        params = f"&resultsPerPage={max(max_results, 200)}"
+        search_url = f"{self.base_url}{self.search_query}{params}"
+
+        self.logger.info(f"Fetching papers for query: {self.search_query}")
+        self.logger.info(f"Search URL: {search_url}")
+
+        # Fetch the search results page
+        response = self._fetch_page(search_url)
+        if response is None:
+            self.logger.error("Could not fetch search page")
+            return []
+
+        html_content = response.text
+        self.logger.info(f"Fetched {len(html_content)} bytes")
+
+        # Extract all paper data
+        papers = self.extract_all_paper_data(html_content)
+
+        # Limit to max_results
+        papers = papers[:max_results]
+
+        self.logger.info(f"Returning {len(papers)} papers")
+        return papers
+
+    def download_papers(
+        self, papers: list[dict], output_dir: str | None = None
+    ) -> tuple[int, int]:
+        """Download PDFs for a list of papers.
+
+        Args:
+            papers: List of paper dictionaries (as returned by fetch_papers)
+            output_dir: Output directory (uses self.output_directory if None)
+
+        Returns:
+            Tuple of (total_papers, downloaded_count)
+        """
+        if output_dir is None:
+            output_dir = self.output_directory
+
+        total = len(papers)
+        downloaded = 0
+
+        self.logger.info(f"Starting download of {total} papers")
+
+        for idx, paper in enumerate(papers, 1):
+            try:
+                pdf_info = {
+                    "url": paper.get("pdf_url"),
+                    "title": paper.get("title", "paper"),
+                }
+
+                self.logger.info(
+                    f"[{idx}/{total}] Downloading: {paper.get('title', 'Unknown')[:60]}"
+                )
+
+                if self.download_pdf(pdf_info, output_dir):
+                    downloaded += 1
+
+                # Delay between downloads
+                time.sleep(self.request_delay)
+
+            except Exception as e:
+                self.logger.error(f"Error downloading paper {idx}: {str(e)}")
+                continue
+
+        # Summary
+        self.logger.info("\n" + "=" * 50)
+        self.logger.info("Download Complete!")
+        self.logger.info(f"Total papers: {total}")
+        self.logger.info(f"Downloaded: {downloaded}")
+        self.logger.info(f"Failed: {total - downloaded}")
+        self.logger.info(f"Output directory: {output_dir}")
+        self.logger.info("=" * 50)
+
+        return total, downloaded
