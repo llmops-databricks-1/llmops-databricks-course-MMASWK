@@ -1,0 +1,23 @@
+resources:
+  jobs:
+    mcp_agent_test_job:
+      name: mcp-agent-test
+      tags:
+        project_name: "llmops-databricks-course-MMASWK"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"
+            dependencies:
+              - ../dist/*.whl
+
+      tasks:
+        - task_key: mcp_agent_test
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/mcp_agent_test_notebook.py
+            base_parameters:
+              env: ${bundle.target}
+              git_sha: "${var.git_sha}"
+              run_id: "{{job.run_id}}"
