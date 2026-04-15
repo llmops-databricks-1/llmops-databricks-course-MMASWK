@@ -3,30 +3,36 @@
 
 # test notebook for week 3
 
-import asyncio
 from uuid import uuid4
 
 import nest_asyncio
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.database import DatabaseInstance, DatabaseInstanceState
-from databricks_mcp import DatabricksMCPClient
 from loguru import logger
 
-from filteredNotFrenzied.agent import MdpiAgent
+from filteredNotFrenzied.agent import MdpiAgent, log_register_agent
 from filteredNotFrenzied.config import load_config
 from filteredNotFrenzied.custom_tools import (
     COFFEE_RATIO_BREWING_TOOL,
     KASUYA_4_6_SPLIT_TOOL,
 )
-from filteredNotFrenzied.mcp import create_mcp_tools
+from filteredNotFrenzied.evaluation import evaluate_agent
 from filteredNotFrenzied.memory import LakebaseMemory
 from filteredNotFrenzied.tool_registry import ToolRegistry
+from filteredNotFrenzied.utils.common import get_widget
 
 nest_asyncio.apply()
+
+env = get_widget("env", "dev")
+git_sha = get_widget("git_sha", "local")
+run_id = get_widget("run_id", "local")
 
 cfg = load_config(
     "/Workspace/Users/maximilian.meisterarendt@swk.de/.bundle/llmops-databricks-course-MMASWK/dev/files/project_config.yml"
 )
+
+model_name = f"{cfg.catalog}.{cfg.schema}.mdpi_agent"
+
 w = WorkspaceClient()
 instance_name = "mdpi-agent-instance"
 
@@ -39,17 +45,6 @@ registry.register(KASUYA_4_6_SPLIT_TOOL)
 # COMMAND ----------
 host = w.config.host
 vector_search_mcp_url = f"{host}/api/2.0/mcp/vector-search/{cfg.catalog}/{cfg.schema}"
-
-vs_mcp_client = DatabricksMCPClient(server_url=vector_search_mcp_url, workspace_client=w)
-
-
-# COMMAND ----------
-mcp_urls = [f"{host}/api/2.0/mcp/vector-search/{cfg.catalog}/{cfg.schema}"]
-mcp_tools = asyncio.run(create_mcp_tools(w, mcp_urls))
-
-# COMMAND ----------
-
-all_tools = mcp_tools + registry.get_all_tools()
 
 # COMMAND ----------
 
@@ -91,28 +86,33 @@ session_id = f"test-session-{uuid4()}"
 
 agent = MdpiAgent(
     llm_endpoint=cfg.llm_endpoint,
-    system_prompt="You are a witty and clever research assistant talking like "
-    "Pierce Brosnan James Bond. "
-    "Use the available tools to search for papers and answer questions. ",
-    tools=all_tools,
-    memory=memory,
-    session_id=session_id,
+    system_prompt="You are the James Bond of coffee brewing. Be witty and "
+    "talk like Pierce Brosnan James Bond. "
+    "Support the user to find great papers about coffee. Q gave you vector search "
+    "to find papers, "
+    "Kasuya 4:6 method and appropriate coffee brewing tools to support the user "
+    "to brew delicious coffee. "
+    "Do not mention the tools in the response.",
+    catalog=cfg.catalog,
+    schema=cfg.schema,
+    lakebase_project_id="mdpi-agent-instance",
+    custom_tools=registry.get_all_tools(),
 )
 
 
 # COMMAND ----------
-
-response = agent.chat(
-    "I want to brew a coffe with a 1:16 ratio and 320g of water. "
-    "How much coffee do i need?"
+results = evaluate_agent(
+    cfg,
+    "/Workspace/Users/maximilian.meisterarendt@swk.de/.bundle/llmops-databricks-course-MMASWK/dev/files/eval_inputs.txt",
+    agent,
 )
-logger.info(f"Agent response: {response}")
 
-response = agent.chat("Find papers about coffee health benefits")
-logger.info(f"Agent response: {response}")
-
-response = agent.chat(
-    "I want to brew a coffe with the 4:6 method and have 287g of water. "
-    "What is the amount of water for the first and second pour?"
+# COMMAND ----------
+registered_model = log_register_agent(
+    cfg=cfg,
+    git_sha=git_sha,
+    run_id=run_id,
+    agent_code_path="/Workspace/Users/maximilian.meisterarendt@swk.de/.bundle/llmops-databricks-course-MMASWK/dev/files/mdpi_agent.py",
+    model_name=model_name,
+    evaluation_metrics=results.metrics,
 )
-logger.info(f"Agent response: {response}")

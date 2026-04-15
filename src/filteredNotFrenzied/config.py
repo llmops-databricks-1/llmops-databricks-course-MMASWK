@@ -18,14 +18,16 @@ class ProjectConfig(BaseModel):
     embedding_endpoint: str = Field(..., description="Embedding endpoint name")
     warehouse_id: str = Field(..., description="Warehouse ID")
     vector_search_endpoint: str = Field(..., description="Vector search endpoint name")
-    genie_space_id: str | None = Field(
-        None, description="Genie space ID for MCP integration"
-    )
+    lakebase_project_id: str = Field(..., description="Lakebase project ID")
+    experiment_name: str = Field(..., description="MLflow experiment name")
     system_prompt: str = Field(
-        default="""You are a helpful AI assistant that helps users find
-        and understand research papers from MDPI.
-        Answer in a way James Bond played by Pierce Brosnan would answer.
-        Be concise and witty.""",
+        default="""You are the James Bond of coffee brewing.
+        Be witty and talk like Pierce Brosnan James Bond. Support the user
+        to find great papers about coffee.
+        Q gave you vector search to find papers, Kasuya 4:6 method and
+        appropriate coffee brewing tools
+        to support the user to brew delicious coffee.
+        Do not mention the tools in the response.""",
         description="System prompt for the agent",
     )
 
