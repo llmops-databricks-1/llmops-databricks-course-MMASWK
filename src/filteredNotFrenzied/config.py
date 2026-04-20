@@ -30,6 +30,7 @@ class ProjectConfig(BaseModel):
         Do not mention the tools in the response.""",
         description="System prompt for the agent",
     )
+    usage_policy_id: str = Field(..., description="Usage policy ID")
 
     model_config = {"populate_by_name": True}
 

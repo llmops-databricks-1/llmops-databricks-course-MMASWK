@@ -314,7 +314,7 @@ def log_register_agent(
         "input": [
             {
                 "role": "user",
-                "content": "What are recent papers about LLMs and reasoning?",
+                "content": "What are the health benefits of coffee?",
             }
         ]
     }

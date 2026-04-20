@@ -3,6 +3,11 @@ from mlflow.genai.scorers import Guidelines
 
 from filteredNotFrenzied.agent import MdpiAgent
 from filteredNotFrenzied.config import ProjectConfig
+from filteredNotFrenzied.custom_tools import (
+    COFFEE_RATIO_BREWING_TOOL,
+    KASUYA_4_6_SPLIT_TOOL,
+)
+from filteredNotFrenzied.tool_registry import ToolRegistry
 
 witty_tone_guideline = Guidelines(
     name="witty_tone",
@@ -45,18 +50,35 @@ james_bond_reference_guideline = Guidelines(
 
 
 def evaluate_agent(
-    cfg: ProjectConfig, eval_inputs_path: str, agent: MdpiAgent
+    cfg: ProjectConfig, eval_inputs_path: str
 ) -> mlflow.models.EvaluationResult:
     """Run evaluation on the agent.
 
     Args:
         cfg: Project configuration.
         eval_inputs_path: Path to evaluation inputs file.
-        agent: The MdpiAgent instance to evaluate.
 
     Returns:
         MLflow EvaluationResult with metrics.
     """
+    registry = ToolRegistry()
+    registry.register(COFFEE_RATIO_BREWING_TOOL)
+    registry.register(KASUYA_4_6_SPLIT_TOOL)
+
+    agent = MdpiAgent(
+        llm_endpoint=cfg.llm_endpoint,
+        system_prompt="You are the James Bond of coffee brewing. Be witty and "
+        "talk like Pierce Brosnan James Bond. "
+        "Support the user to find great papers about coffee. Q gave you vector search "
+        "to find papers, "
+        "Kasuya 4:6 method and appropriate coffee brewing tools to support the user "
+        "to brew delicious coffee. "
+        "Do not mention the tools in the response.",
+        catalog=cfg.catalog,
+        schema=cfg.schema,
+        lakebase_project_id=cfg.lakebase_project_id,
+        custom_tools=registry.get_all_tools(),
+    )
 
     with open(eval_inputs_path) as f:
         eval_data = [{"inputs": {"question": line.strip()}} for line in f if line.strip()]
