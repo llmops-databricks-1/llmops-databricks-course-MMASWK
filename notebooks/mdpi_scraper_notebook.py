@@ -27,7 +27,7 @@ cfg = load_config("../project_config.yml", env)
 
 CATALOG = cfg.catalog
 SCHEMA = cfg.schema
-TABLE_NAME = "arxiv_papers"
+TABLE_NAME = "mdpi_papers"
 
 # COMMAND ----------
 

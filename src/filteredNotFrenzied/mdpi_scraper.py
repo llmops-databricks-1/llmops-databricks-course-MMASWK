@@ -643,14 +643,12 @@ class MDPIScraper:
                 journal_name = match.group(1).strip()
                 if journal_name:
                     return journal_name
-
             # Fallback: just get text before first digit
             for i, char in enumerate(full_text):
                 if char.isdigit():
                     journal_name = full_text[:i].strip()
                     if journal_name:
                         return journal_name
-
             return "Unknown"
         except Exception as e:
             self.logger.debug(f"Error extracting journal: {str(e)}")
@@ -704,12 +702,10 @@ class MDPIScraper:
                 date = match.group(1).strip()
                 if date:
                     return date
-
             # Fallback: look for date pattern anywhere (DD Mon YYYY)
             date_match = re.search(r"(\d{1,2}\s+\w+\s+\d{4})", full_text)
             if date_match:
                 return date_match.group(1)
-
             return "Unknown"
         except Exception as e:
             self.logger.debug(f"Error extracting publication date: {str(e)}")
@@ -793,7 +789,6 @@ class MDPIScraper:
                 return match.group(1)
         except Exception as e:
             self.logger.debug(f"Error extracting version ID: {str(e)}")
-
         return "Unknown"
 
     def extract_all_paper_data(self, html_content: str) -> list[dict]:
@@ -821,7 +816,6 @@ class MDPIScraper:
                 try:
                     # Extract title from data-name attribute
                     title = pdf_link.get("data-name", "Unknown").strip()
-
                     # Extract PDF URL
                     pdf_href = pdf_link.get("href", "")
                     pdf_url = urljoin(self.base_url, pdf_href) if pdf_href else "Unknown"
@@ -908,7 +902,6 @@ class MDPIScraper:
                 ]
                 if authors:
                     return ", ".join(authors)
-
             return "Unknown"
         except Exception as e:
             self.logger.debug(f"Error extracting authors: {str(e)}")
